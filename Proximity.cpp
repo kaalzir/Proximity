@@ -1,3 +1,4 @@
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
@@ -9,9 +10,20 @@
 
 using namespace std;
 
+
 using ActivatorKey = uint64_t;
 using TriggerKey = uint64_t;
 using Coordinate = uint32_t;
+
+static constexpr uint32_t sc_MinCoordinate = 1000;
+static constexpr uint32_t sc_MaxCoordinate = 15000;
+static constexpr uint32_t sc_HotspotsSize = 4;
+static constexpr uint32_t sc_TriggersSize = 10000;
+static constexpr uint32_t sc_ActivatorsSize = 64;
+static constexpr ActivatorKey sc_InvalidActivatorKey = sc_ActivatorsSize;
+static constexpr uint32_t sc_CoordinateVariance = 100;
+static constexpr uint32_t sc_TriggerInRange = 75;
+static constexpr uint32_t sc_RepeatCount = 10000;
 
 struct Position
 {
@@ -66,8 +78,13 @@ struct Trigger
     vector<ActivatorKey> m_ActivatorKeys;
     Position m_Position{};
     TriggerKey m_Key{};
-    Coordinate m_InRange;
+    Coordinate m_InRange{};
 };
+
+using Hotspots = array<Position, sc_HotspotsSize>;
+using Triggers = array<Trigger, sc_TriggersSize>;
+using Activators = array<Activator, sc_ActivatorsSize>;
+using ActivatorKeys = array<ActivatorKey, sc_ActivatorsSize>;
 
 template<typename T>
 inline T Difference(const T& first, const T& second)
@@ -86,15 +103,15 @@ inline T RandomCoordinate(T minCoordinate, T maxCoordinate)
     return rand() % (maxCoordinate - minCoordinate + 1) + minCoordinate;
 }
 
-void BuildHotspots(vector<Position>& hotspots, uint32_t size, Coordinate minCoordinate, Coordinate maxCoordinate)
+void BuildHotspots(Hotspots& hotspots, uint32_t size, Coordinate minCoordinate, Coordinate maxCoordinate)
 {
     for (uint32_t i = 0; i < size; ++i)
     {
-        hotspots.emplace_back(RandomCoordinate(minCoordinate, maxCoordinate), RandomCoordinate(minCoordinate, maxCoordinate));
+        hotspots[i] = Position(RandomCoordinate(minCoordinate, maxCoordinate), RandomCoordinate(minCoordinate, maxCoordinate));
     }
 }
 
-void BuildTriggers(vector<Position>& hotspots, vector<Trigger>& triggers, uint32_t size, Coordinate coordinateVariance, Coordinate inRange)
+void BuildTriggers(Hotspots& hotspots, Triggers& triggers, uint32_t size, Coordinate coordinateVariance, Coordinate inRange)
 {
     uint64_t hotspotSize{ hotspots.size() };
     for (uint32_t i = 0; i < size; ++i)
@@ -103,11 +120,11 @@ void BuildTriggers(vector<Position>& hotspots, vector<Trigger>& triggers, uint32
         uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
         uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         Position triggerPos(x, y);
-        triggers.emplace_back(triggerPos, i, inRange);
+        triggers[i] = Trigger(triggerPos, i, inRange);
     }
 }
 
-void BuildActivators(vector<Position>& hotspots, vector<Activator>& activators, uint32_t size, Coordinate coordinateVariance)
+void BuildActivators(Hotspots& hotspots, Activators& activators, uint32_t size, Coordinate coordinateVariance)
 {
     uint64_t hotspotSize{ hotspots.size() };
     for (uint32_t i = 0; i < size; ++i)
@@ -116,11 +133,11 @@ void BuildActivators(vector<Position>& hotspots, vector<Activator>& activators, 
         uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
         uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         Position activatorPos(x, y);
-        activators.emplace_back(activatorPos, i);
+        activators[i] = Activator(activatorPos, i);
     }
 }
 
-void MoveActivators(vector<Position>& hotspots, vector<Activator>& activators, uint32_t size, Coordinate coordinateVariance)
+void MoveActivators(Hotspots& hotspots, Activators& activators, uint32_t size, Coordinate coordinateVariance)
 {
     uint64_t hotspotSize{ hotspots.size() };
     for (uint32_t i = 0; i < size; ++i)
@@ -132,45 +149,55 @@ void MoveActivators(vector<Position>& hotspots, vector<Activator>& activators, u
     }
 }
 
-void FilterInActivators(const Trigger& trigger, const vector<Activator>& activators, vector<ActivatorKey>& inActivators)
+void FilterInActivators(const Trigger& trigger, const Activators& activators, ActivatorKeys& inActivators, uint64_t& inActivatorsSize)
 {
+    inActivatorsSize = 0;
     for (const Activator& activator : activators)
     {
         if (IsInRange(trigger.m_Position, activator.m_Position, trigger.m_InRange))
         {
-            inActivators.push_back(activator.m_Key);
+            inActivators[inActivatorsSize++] = activator.m_Key;
         }
     }
 }
 
-void FilterNewInOutActivators(const Trigger& trigger, const vector<ActivatorKey>& inActivators, vector<ActivatorKey>& newInActivators, vector<ActivatorKey>& newOutActivators)
+void FilterNewInOutActivators(Trigger& trigger, const ActivatorKeys& inActivators, uint64_t inActivatorsSize, ActivatorKeys& newInActivators, uint64_t& newInActivatorsSize, ActivatorKeys& newOutActivators, uint64_t& newOutActivatorsSize)
 {
-    const vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
-    for (const ActivatorKey& activatorKey : inActivators)
+    vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
+    for (uint32_t i = 0; i < inActivatorsSize; ++i)
     {
-        if (std::find(existingKeys.begin(), existingKeys.end(), activatorKey) == existingKeys.end())
+        ActivatorKey activatorKey = inActivators[i];
+        if (std::find(existingKeys.begin(), existingKeys.begin(), activatorKey) == existingKeys.end())
         {
-            newInActivators.push_back(activatorKey);
+            newInActivators[newInActivatorsSize++] = activatorKey;
         }
     }
+
+    auto inActivatorsBegin = inActivators.begin();
+    auto inActivatorsEnd = inActivatorsBegin + inActivatorsSize;
     for (const ActivatorKey& activatorKey : existingKeys)
     {
-        if (std::find(inActivators.begin(), inActivators.end(), activatorKey) == inActivators.end())
+        if (std::find(inActivatorsBegin, inActivatorsEnd, activatorKey) == inActivatorsEnd)
         {
-            newOutActivators.push_back(activatorKey);
+            newOutActivators[newOutActivatorsSize++] = activatorKey;
         }
     }
+    existingKeys.clear();
+    std::copy(inActivatorsBegin, inActivatorsEnd, back_inserter(existingKeys));
 }
 
-void UpdateProximity(vector<Trigger>& triggers, vector<Activator>& activators, uint64_t& counter)
+void UpdateProximity(Triggers& triggers, Activators& activators, uint64_t& counter)
 {
     for (Trigger& trigger : triggers)
     {
-        vector<ActivatorKey> inActivators;
-        FilterInActivators(trigger, activators, inActivators);
-        vector<ActivatorKey> newInActivators;
-        vector<ActivatorKey> newOutActivators;
-        FilterNewInOutActivators(trigger, inActivators, newInActivators, newOutActivators);
+        ActivatorKeys inActivators;
+        uint64_t inActivatorsSize{};
+        FilterInActivators(trigger, activators, inActivators, inActivatorsSize);
+        ActivatorKeys newInActivators;
+        uint64_t newInActivatorsSize{};
+        ActivatorKeys newOutActivators;
+        uint64_t newOutActivatorsSize{};
+        FilterNewInOutActivators(trigger, inActivators, inActivatorsSize, newInActivators, newInActivatorsSize, newOutActivators, newOutActivatorsSize);
         counter += newInActivators.size() + newOutActivators.size();
     }
 }
@@ -179,33 +206,19 @@ int main()
 {
     srand(uint32_t(time(0)));
 
-    static constexpr uint32_t sc_MinCoordinate = 1000;
-    static constexpr uint32_t sc_MaxCoordinate = 15000;
-    static constexpr uint32_t sc_HotspotsSize = 4;
-    static constexpr uint32_t sc_TriggersSize = 10000;
-    static constexpr uint32_t sc_ActivatorsSize = 64;
-    static constexpr uint32_t sc_CoordinateVariance = 100;
-    static constexpr uint32_t sc_TriggerInRange = 75;
-    static constexpr uint32_t sc_RepeatCount = 1000;
-
     Timer timer;
 
-    vector<Position> hotspots;
-    hotspots.reserve(sc_HotspotsSize);
+    Hotspots hotspots;
     BuildHotspots(hotspots, sc_HotspotsSize, sc_MinCoordinate, sc_MaxCoordinate);
 
-    vector<Trigger> triggers;
-    triggers.reserve(sc_TriggersSize);
+    Triggers triggers;
     BuildTriggers(hotspots, triggers, sc_TriggersSize, sc_CoordinateVariance, sc_TriggerInRange);
 
-    vector<Activator> activators;
-    activators.reserve(sc_ActivatorsSize);
+    Activators activators;
     BuildActivators(hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
 
-    printf("Trigger: %d\r\nActivator: %d\r\n", sizeof(Trigger), sizeof(Activator));
-
     double elapsed = timer.Elapsed();
-    printf("Build: %.2lf ns \r\n%.2lf us\r\n%.2lf s\r\n", elapsed, elapsed / 1000, elapsed / 1000000);
+    printf("Build: %.2lf ns \r\n%.2lf us\r\n%.2lf ms\r\n", elapsed, elapsed / 1000, elapsed / 1000000);
 
     double averageElapsed{};
     uint64_t counter{};
@@ -217,5 +230,5 @@ int main()
         averageElapsed += elapsed / sc_RepeatCount;
         MoveActivators(hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
     }
-    printf("%lld\r\nAverage: %.2lf ns \r\n%.2lf us\r\n%.2lf s\r\n", counter, averageElapsed, averageElapsed / 1000, averageElapsed / 1000000);
+    printf("%lld\r\nAverage: %.2lf ns \r\n%.2lf us\r\n%.2lf ms\r\n", counter, averageElapsed, averageElapsed / 1000, averageElapsed / 1000000);
 }
