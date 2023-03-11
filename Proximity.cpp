@@ -67,7 +67,6 @@ struct Trigger
     Position m_Position{};
     TriggerKey m_Key{};
     Coordinate m_InRange;
-    uint64_t m_Padding{};
 };
 
 template<typename T>
@@ -133,6 +132,49 @@ void MoveActivators(vector<Position>& hotspots, vector<Activator>& activators, u
     }
 }
 
+void FilterInActivators(const Trigger& trigger, const vector<Activator>& activators, vector<ActivatorKey>& inActivators)
+{
+    for (const Activator& activator : activators)
+    {
+        if (IsInRange(trigger.m_Position, activator.m_Position, trigger.m_InRange))
+        {
+            inActivators.push_back(activator.m_Key);
+        }
+    }
+}
+
+void FilterNewInOutActivators(const Trigger& trigger, const vector<ActivatorKey>& inActivators, vector<ActivatorKey>& newInActivators, vector<ActivatorKey>& newOutActivators)
+{
+    const vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
+    for (const ActivatorKey& activatorKey : inActivators)
+    {
+        if (std::find(existingKeys.begin(), existingKeys.end(), activatorKey) == existingKeys.end())
+        {
+            newInActivators.push_back(activatorKey);
+        }
+    }
+    for (const ActivatorKey& activatorKey : existingKeys)
+    {
+        if (std::find(inActivators.begin(), inActivators.end(), activatorKey) == inActivators.end())
+        {
+            newOutActivators.push_back(activatorKey);
+        }
+    }
+}
+
+void UpdateProximity(vector<Trigger>& triggers, vector<Activator>& activators, uint64_t& counter)
+{
+    for (Trigger& trigger : triggers)
+    {
+        vector<ActivatorKey> inActivators;
+        FilterInActivators(trigger, activators, inActivators);
+        vector<ActivatorKey> newInActivators;
+        vector<ActivatorKey> newOutActivators;
+        FilterNewInOutActivators(trigger, inActivators, newInActivators, newOutActivators);
+        counter += newInActivators.size() + newOutActivators.size();
+    }
+}
+
 int main()
 {
     srand(uint32_t(time(0)));
@@ -144,6 +186,7 @@ int main()
     static constexpr uint32_t sc_ActivatorsSize = 64;
     static constexpr uint32_t sc_CoordinateVariance = 100;
     static constexpr uint32_t sc_TriggerInRange = 75;
+    static constexpr uint32_t sc_RepeatCount = 1000;
 
     Timer timer;
 
@@ -159,6 +202,20 @@ int main()
     activators.reserve(sc_ActivatorsSize);
     BuildActivators(hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
 
+    printf("Trigger: %d\r\nActivator: %d\r\n", sizeof(Trigger), sizeof(Activator));
+
     double elapsed = timer.Elapsed();
-    printf("%.2lf ns \r\n%.2lf us\r\n%.2lf s\r\n", elapsed, elapsed / 1000, elapsed / 1000000);
+    printf("Build: %.2lf ns \r\n%.2lf us\r\n%.2lf s\r\n", elapsed, elapsed / 1000, elapsed / 1000000);
+
+    double averageElapsed{};
+    uint64_t counter{};
+    for (uint32_t i = 0; i < sc_RepeatCount; ++i)
+    {
+        timer.Reinit();
+        UpdateProximity(triggers, activators, counter);
+        elapsed = timer.Elapsed();
+        averageElapsed += elapsed / sc_RepeatCount;
+        MoveActivators(hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
+    }
+    printf("%lld\r\nAverage: %.2lf ns \r\n%.2lf us\r\n%.2lf s\r\n", counter, averageElapsed, averageElapsed / 1000, averageElapsed / 1000000);
 }
