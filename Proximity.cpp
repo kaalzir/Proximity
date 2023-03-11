@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdlib>
@@ -57,6 +58,11 @@ struct Activator
     {
     }
 
+    bool operator<(const Activator& other)
+    {
+        return m_Position.m_X < other.m_Position.m_X;
+    }
+
     Position m_Position{};
     ActivatorKey m_Key{};
 };
@@ -74,11 +80,27 @@ struct Trigger
         : m_Position(other.m_Position), m_Key(other.m_Key), m_InRange(other.m_InRange)
     {
     }
+    Trigger& operator=(const Trigger& other)
+    {
+        m_Position = other.m_Position;
+        m_Key = other.m_Key;
+        m_InRange = other.m_InRange;
+    }
 
-    vector<ActivatorKey> m_ActivatorKeys;
+    Trigger(Trigger&& other) = default;
+    Trigger& operator=(Trigger&& other) = default;
+
+
+    bool operator<(const Trigger& other)
+    {
+        return m_Position.m_X < other.m_Position.m_X;
+    }
+
+    vector<ActivatorKey> m_ActivatorKeys{};
     Position m_Position{};
     TriggerKey m_Key{};
     Coordinate m_InRange{};
+    uint64_t m_Padding[2]{};
 };
 
 using Hotspots = array<Position, sc_HotspotsSize>;
@@ -92,9 +114,14 @@ inline T Difference(const T& first, const T& second)
     return first > second ? first - second : second - first;
 }
 
+inline bool IsInRange(const Coordinate first, const Coordinate second, const Coordinate inRange)
+{
+    return Difference(first, second) < inRange;
+}
+
 inline bool IsInRange(const Position first, const Position second, const Coordinate inRange)
 {
-    return Difference(first.m_X, second.m_X) < inRange || Difference(first.m_Y, second.m_Y) < inRange;
+    return IsInRange(first.m_X, second.m_X, inRange) || IsInRange(first.m_Y, second.m_Y, inRange);
 }
 
 template<typename T>
@@ -149,14 +176,14 @@ void MoveActivators(Hotspots& hotspots, Activators& activators, uint32_t size, C
     }
 }
 
-void FilterInActivators(const Trigger& trigger, const Activators& activators, ActivatorKeys& inActivators, uint64_t& inActivatorsSize)
+void FilterInActivators(const Trigger& trigger, const Activators& activators, uint64_t activatorsBeginIndex, uint64_t activatorsEndIndex, ActivatorKeys& inActivators, uint64_t& inActivatorsSize)
 {
     inActivatorsSize = 0;
-    for (const Activator& activator : activators)
+    for (uint64_t i = activatorsBeginIndex; i < activatorsEndIndex; ++i)
     {
-        if (IsInRange(trigger.m_Position, activator.m_Position, trigger.m_InRange))
+        if (IsInRange(trigger.m_Position, activators[i].m_Position, trigger.m_InRange))
         {
-            inActivators[inActivatorsSize++] = activator.m_Key;
+            inActivators[inActivatorsSize++] = activators[i].m_Key;
         }
     }
 }
@@ -188,16 +215,34 @@ void FilterNewInOutActivators(Trigger& trigger, const ActivatorKeys& inActivator
 
 void UpdateProximity(Triggers& triggers, Activators& activators, uint64_t& counter)
 {
+    sort(activators.begin(), activators.end());
+    sort(triggers.begin(), triggers.end());
+
+    uint64_t activatorsBeginIndex{};
+    uint64_t activatorsEndIndex{};
+
     for (Trigger& trigger : triggers)
     {
+        uint64_t activatorsSize{ activators.size() };
+        while (activatorsBeginIndex != activatorsSize && !IsInRange(trigger.m_Position.m_X, activators[activatorsBeginIndex].m_Position.m_X, trigger.m_InRange))
+        {
+            ++activatorsBeginIndex;
+        }
+        while (activatorsEndIndex != activatorsSize && IsInRange(trigger.m_Position.m_X, activators[activatorsEndIndex].m_Position.m_X, trigger.m_InRange))
+        {
+            ++activatorsEndIndex;
+        }
+
         ActivatorKeys inActivators;
         uint64_t inActivatorsSize{};
-        FilterInActivators(trigger, activators, inActivators, inActivatorsSize);
+        FilterInActivators(trigger, activators, activatorsBeginIndex, activatorsEndIndex, inActivators, inActivatorsSize);
+
         ActivatorKeys newInActivators;
         uint64_t newInActivatorsSize{};
         ActivatorKeys newOutActivators;
         uint64_t newOutActivatorsSize{};
         FilterNewInOutActivators(trigger, inActivators, inActivatorsSize, newInActivators, newInActivatorsSize, newOutActivators, newOutActivatorsSize);
+        
         counter += newInActivators.size() + newOutActivators.size();
     }
 }
@@ -225,9 +270,12 @@ int main()
     for (uint32_t i = 0; i < sc_RepeatCount; ++i)
     {
         timer.Reinit();
+        
         UpdateProximity(triggers, activators, counter);
+
         elapsed = timer.Elapsed();
         averageElapsed += elapsed / sc_RepeatCount;
+
         MoveActivators(hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
     }
     printf("%lld\r\nAverage: %.2lf ns \r\n%.2lf us\r\n%.2lf ms\r\n", counter, averageElapsed, averageElapsed / 1000, averageElapsed / 1000000);
