@@ -13,15 +13,27 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Extern">
+      <UniqueIdentifier>{bca6870a-a048-4079-86c5-273d6573ea34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Extern\aabb">
+      <UniqueIdentifier>{69370142-e4c2-495a-b375-abd00590047a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Proximity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="extern\aabb\AABB.cc">
+      <Filter>Extern\aabb</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Timer.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="extern\aabb\AABB.h">
+      <Filter>Extern\aabb</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

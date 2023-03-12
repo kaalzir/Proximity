@@ -9,6 +9,8 @@
 #include <Timer.h>
 #include <vector>
 
+#include <extern\aabb\AABB.h>
+
 using namespace std;
 
 
@@ -18,13 +20,13 @@ using Coordinate = uint32_t;
 
 static constexpr uint32_t sc_MinCoordinate = 1000;
 static constexpr uint32_t sc_MaxCoordinate = 15000;
-static constexpr uint32_t sc_HotspotsSize = 4;
+static constexpr uint32_t sc_HotspotsSize = 8;
 static constexpr uint32_t sc_TriggersSize = 10000;
 static constexpr uint32_t sc_ActivatorsSize = 64;
 static constexpr ActivatorKey sc_InvalidActivatorKey = sc_ActivatorsSize;
 static constexpr uint32_t sc_CoordinateVariance = 100;
 static constexpr uint32_t sc_TriggerInRange = 75;
-static constexpr uint32_t sc_RepeatCount = 10000;
+static constexpr uint32_t sc_RepeatCount = 1;
 
 struct Position
 {
@@ -138,7 +140,7 @@ void BuildHotspots(Hotspots& hotspots, uint32_t size, Coordinate minCoordinate, 
     }
 }
 
-void BuildTriggers(Hotspots& hotspots, Triggers& triggers, uint32_t size, Coordinate coordinateVariance, Coordinate inRange)
+void BuildTriggers(aabb::Tree& tree, Hotspots& hotspots, Triggers& triggers, uint32_t size, Coordinate coordinateVariance, Coordinate inRange)
 {
     uint64_t hotspotSize{ hotspots.size() };
     for (uint32_t i = 0; i < size; ++i)
@@ -148,10 +150,12 @@ void BuildTriggers(Hotspots& hotspots, Triggers& triggers, uint32_t size, Coordi
         uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         Position triggerPos(x, y);
         triggers[i] = Trigger(triggerPos, i, inRange);
+        auto vec = vector<double>({ (double)x, (double)y });
+        tree.insertParticle(i, vec, (double)inRange);
     }
 }
 
-void BuildActivators(Hotspots& hotspots, Activators& activators, uint32_t size, Coordinate coordinateVariance)
+void BuildActivators(aabb::Tree& tree, Hotspots& hotspots, Activators& activators, uint32_t size, Coordinate coordinateVariance)
 {
     uint64_t hotspotSize{ hotspots.size() };
     for (uint32_t i = 0; i < size; ++i)
@@ -161,10 +165,12 @@ void BuildActivators(Hotspots& hotspots, Activators& activators, uint32_t size, 
         uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         Position activatorPos(x, y);
         activators[i] = Activator(activatorPos, i);
+        auto vec = vector<double>({ (double)x, (double)y });
+        tree.insertParticle(i + sc_TriggersSize, vec, 0.05);
     }
 }
 
-void MoveActivators(Hotspots& hotspots, Activators& activators, uint32_t size, Coordinate coordinateVariance)
+void MoveActivators(aabb::Tree& tree, Hotspots& hotspots, Activators& activators, uint32_t size, Coordinate coordinateVariance)
 {
     uint64_t hotspotSize{ hotspots.size() };
     for (uint32_t i = 0; i < size; ++i)
@@ -173,17 +179,20 @@ void MoveActivators(Hotspots& hotspots, Activators& activators, uint32_t size, C
         uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
         uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         activators[i].m_Position = Position(x, y);
+        auto vec = vector<double>({ (double)x, (double)y });
+        tree.updateParticle(i + sc_TriggersSize, vec, 0.05);
     }
 }
 
-void FilterInActivators(const Trigger& trigger, const Activators& activators, uint64_t activatorsBeginIndex, uint64_t activatorsEndIndex, ActivatorKeys& inActivators, uint64_t& inActivatorsSize)
+void FilterInActivators(aabb::Tree& tree, const Trigger& trigger, const Activators& activators, ActivatorKeys& inActivators, uint64_t& inActivatorsSize)
 {
     inActivatorsSize = 0;
-    for (uint64_t i = activatorsBeginIndex; i < activatorsEndIndex; ++i)
+    const vector<unsigned int>& result = tree.query(trigger.m_Key);
+    for (unsigned int key : result)
     {
-        if (IsInRange(trigger.m_Position, activators[i].m_Position, trigger.m_InRange))
+        if (key >= sc_TriggersSize)
         {
-            inActivators[inActivatorsSize++] = activators[i].m_Key;
+            inActivators[inActivatorsSize++] = key - sc_TriggersSize;
         }
     }
 }
@@ -213,29 +222,13 @@ void FilterNewInOutActivators(Trigger& trigger, const ActivatorKeys& inActivator
     std::copy(inActivatorsBegin, inActivatorsEnd, back_inserter(existingKeys));
 }
 
-void UpdateProximity(Triggers& triggers, Activators& activators, uint64_t& counter)
+void UpdateProximity(aabb::Tree& tree, Triggers& triggers, Activators& activators, uint64_t& counter)
 {
-    sort(activators.begin(), activators.end());
-    sort(triggers.begin(), triggers.end());
-
-    uint64_t activatorsBeginIndex{};
-    uint64_t activatorsEndIndex{};
-
     for (Trigger& trigger : triggers)
     {
-        uint64_t activatorsSize{ activators.size() };
-        while (activatorsBeginIndex != activatorsSize && !IsInRange(trigger.m_Position.m_X, activators[activatorsBeginIndex].m_Position.m_X, trigger.m_InRange))
-        {
-            ++activatorsBeginIndex;
-        }
-        while (activatorsEndIndex != activatorsSize && IsInRange(trigger.m_Position.m_X, activators[activatorsEndIndex].m_Position.m_X, trigger.m_InRange))
-        {
-            ++activatorsEndIndex;
-        }
-
         ActivatorKeys inActivators;
         uint64_t inActivatorsSize{};
-        FilterInActivators(trigger, activators, activatorsBeginIndex, activatorsEndIndex, inActivators, inActivatorsSize);
+        FilterInActivators(tree, trigger, activators, inActivators, inActivatorsSize);
 
         ActivatorKeys newInActivators;
         uint64_t newInActivatorsSize{};
@@ -256,11 +249,19 @@ int main()
     Hotspots hotspots;
     BuildHotspots(hotspots, sc_HotspotsSize, sc_MinCoordinate, sc_MaxCoordinate);
 
+    // Periodicity of the simulation box.
+    std::vector<bool> periodicity({ true, true });
+
+    // Size of the simulation box.
+    std::vector<double> boxSize({ 2 * sc_MaxCoordinate, 2 * sc_MaxCoordinate });
+
+    aabb::Tree tree(2, 0.05, periodicity, boxSize, sc_TriggersSize + sc_ActivatorsSize, true);
+
     Triggers triggers;
-    BuildTriggers(hotspots, triggers, sc_TriggersSize, sc_CoordinateVariance, sc_TriggerInRange);
+    BuildTriggers(tree, hotspots, triggers, sc_TriggersSize, sc_CoordinateVariance, sc_TriggerInRange);
 
     Activators activators;
-    BuildActivators(hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
+    BuildActivators(tree, hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
 
     double elapsed = timer.Elapsed();
     printf("Build: %.2lf ns \r\n%.2lf us\r\n%.2lf ms\r\n", elapsed, elapsed / 1000, elapsed / 1000000);
@@ -271,12 +272,12 @@ int main()
     {
         timer.Reinit();
         
-        UpdateProximity(triggers, activators, counter);
+        UpdateProximity(tree, triggers, activators, counter);
 
         elapsed = timer.Elapsed();
         averageElapsed += elapsed / sc_RepeatCount;
 
-        MoveActivators(hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
+        MoveActivators(tree, hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
     }
     printf("%lld\r\nAverage: %.2lf ns \r\n%.2lf us\r\n%.2lf ms\r\n", counter, averageElapsed, averageElapsed / 1000, averageElapsed / 1000000);
 }

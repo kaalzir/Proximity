@@ -4,7 +4,7 @@
 
 using namespace std::chrono;
 
-//Timer class for benchmarking
+//Timer class for benchmarking, adapted from Cherno's example: https://www.youtube.com/watch?v=YG4jexlSAjc
 class Timer
 {
 public: 
