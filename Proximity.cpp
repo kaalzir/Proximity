@@ -24,7 +24,7 @@ static constexpr uint32_t sc_ActivatorsSize = 64;
 static constexpr ActivatorKey sc_InvalidActivatorKey = sc_ActivatorsSize;
 static constexpr uint32_t sc_CoordinateVariance = 100;
 static constexpr uint32_t sc_TriggerInRange = 75;
-static constexpr uint32_t sc_RepeatCount = 10000;
+static constexpr uint32_t sc_RepeatCount = 1000;
 
 struct Position
 {
@@ -181,7 +181,7 @@ void FilterInActivators(const Trigger& trigger, const Activators& activators, ui
     inActivatorsSize = 0;
     for (uint64_t i = activatorsBeginIndex; i < activatorsEndIndex; ++i)
     {
-        if (IsInRange(trigger.m_Position.m_Y, activators[i].m_Position.m_Y, trigger.m_InRange))
+        if (IsInRange(trigger.m_Position, activators[i].m_Position, trigger.m_InRange))
         {
             inActivators[inActivatorsSize++] = activators[i].m_Key;
         }
@@ -194,7 +194,7 @@ void FilterNewInOutActivators(Trigger& trigger, const ActivatorKeys& inActivator
     for (uint32_t i = 0; i < inActivatorsSize; ++i)
     {
         ActivatorKey activatorKey = inActivators[i];
-        if (std::find(existingKeys.begin(), existingKeys.begin(), activatorKey) == existingKeys.end())
+        if (std::find(existingKeys.begin(), existingKeys.end(), activatorKey) == existingKeys.end())
         {
             newInActivators[newInActivatorsSize++] = activatorKey;
         }
@@ -243,7 +243,7 @@ void UpdateProximity(Triggers& triggers, Activators& activators, uint64_t& count
         uint64_t newOutActivatorsSize{};
         FilterNewInOutActivators(trigger, inActivators, inActivatorsSize, newInActivators, newInActivatorsSize, newOutActivators, newOutActivatorsSize);
         
-        counter += newInActivators.size() + newOutActivators.size();
+        counter += newInActivatorsSize + newOutActivatorsSize;
     }
 }
 
