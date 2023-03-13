@@ -24,7 +24,7 @@ static constexpr uint32_t sc_ActivatorsSize = 64;
 static constexpr ActivatorKey sc_InvalidActivatorKey = sc_ActivatorsSize;
 static constexpr uint32_t sc_CoordinateVariance = 100;
 static constexpr uint32_t sc_TriggerInRange = 75;
-static constexpr uint32_t sc_RepeatCount = 1000;
+static constexpr uint32_t sc_RepeatCount = 10000;
 
 struct Position
 {
@@ -60,7 +60,7 @@ struct Activator
 
     bool operator<(const Activator& other)
     {
-        return m_Position.m_X < other.m_Position.m_X || m_Position.m_Y < other.m_Position.m_Y;
+        return m_Position.m_X < other.m_Position.m_X || (m_Position.m_X == other.m_Position.m_X && m_Position.m_Y < other.m_Position.m_Y);
     }
 
     Position m_Position{};
@@ -93,7 +93,7 @@ struct Trigger
 
     bool operator<(const Trigger& other)
     {
-        return m_Position.m_X < other.m_Position.m_X || m_Position.m_Y < other.m_Position.m_Y;
+        return m_Position.m_X < other.m_Position.m_X || (m_Position.m_X == other.m_Position.m_X && m_Position.m_Y < other.m_Position.m_Y);
     }
 
     vector<ActivatorKey> m_ActivatorKeys{};
@@ -181,7 +181,7 @@ void FilterInActivators(const Trigger& trigger, const Activators& activators, ui
     inActivatorsSize = 0;
     for (uint64_t i = activatorsBeginIndex; i < activatorsEndIndex; ++i)
     {
-        if (IsInRange(trigger.m_Position, activators[i].m_Position, trigger.m_InRange))
+        if (IsInRange(trigger.m_Position.m_Y, activators[i].m_Position.m_Y, trigger.m_InRange))
         {
             inActivators[inActivatorsSize++] = activators[i].m_Key;
         }
@@ -202,7 +202,7 @@ void FilterNewInOutActivators(Trigger& trigger, const ActivatorKeys& inActivator
 
     auto inActivatorsBegin = inActivators.begin();
     auto inActivatorsEnd = inActivatorsBegin + inActivatorsSize;
-    for (const ActivatorKey& activatorKey : existingKeys)
+    for (ActivatorKey activatorKey : existingKeys)
     {
         if (std::find(inActivatorsBegin, inActivatorsEnd, activatorKey) == inActivatorsEnd)
         {
