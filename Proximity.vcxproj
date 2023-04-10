@@ -131,10 +131,23 @@
   <ItemGroup>
     <ClCompile Include="extern\aabb\AABB.cc" />
     <ClCompile Include="Proximity.cpp" />
+    <ClCompile Include="source\naive_solution\NaiveProximityImpl.cpp" />
+    <ClCompile Include="tests\IntersectBenchmark.cpp" />
+    <ClCompile Include="tests\UnitTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="extern\aabb\AABB.h" />
-    <ClInclude Include="Timer.h" />
+    <ClInclude Include="extern\catch\catch.hpp" />
+    <ClInclude Include="extern\small_vector\small_vector.h" />
+    <ClInclude Include="source\common\Activator.h" />
+    <ClInclude Include="source\common\IProximity.h" />
+    <ClInclude Include="source\common\Position.h" />
+    <ClInclude Include="source\common\ProximityCommon.h" />
+    <ClInclude Include="source\common\Timer.h" />
+    <ClInclude Include="source\common\Trigger.h" />
+    <ClInclude Include="source\naive_solution\NaiveProximityImpl.h" />
+    <ClInclude Include="tests\IntersectBenchmark.h" />
+    <ClInclude Include="tests\UnitTests.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

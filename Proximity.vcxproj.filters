@@ -19,6 +19,36 @@
     <Filter Include="Extern\aabb">
       <UniqueIdentifier>{69370142-e4c2-495a-b375-abd00590047a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SetSolution">
+      <UniqueIdentifier>{b71e180b-ac4a-4ad8-9551-8e5bd68d76fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DequeueSolution">
+      <UniqueIdentifier>{ba052d30-b552-4fd8-9125-6d7e096c2dc4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirtyFlagSolution">
+      <UniqueIdentifier>{4bd10711-ea2d-4a00-91f8-f50addf33a72}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SIMDSolution">
+      <UniqueIdentifier>{b4f387df-375a-43f9-9cc4-dca620cc610d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Extern\small_vector">
+      <UniqueIdentifier>{5e0ff854-9594-4b5f-b4bf-3df65ac9bc6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="StackArraySolution">
+      <UniqueIdentifier>{5038905c-f301-4a62-87f1-5812cec4d6d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="naive_solution">
+      <UniqueIdentifier>{deb7e5c9-3ac1-4d98-beb5-0d42373b12c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests">
+      <UniqueIdentifier>{a3178122-d3cd-40ab-906a-fcd32f595818}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{edf85864-99dc-477b-99ce-bfbf75f4be9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Extern\catch">
+      <UniqueIdentifier>{68b55ddb-692f-4f32-87e1-f320a961cd00}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Proximity.cpp">
@@ -27,13 +57,52 @@
     <ClCompile Include="extern\aabb\AABB.cc">
       <Filter>Extern\aabb</Filter>
     </ClCompile>
+    <ClCompile Include="tests\IntersectBenchmark.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\UnitTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="source\naive_solution\NaiveProximityImpl.cpp">
+      <Filter>naive_solution</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Timer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="extern\aabb\AABB.h">
       <Filter>Extern\aabb</Filter>
+    </ClInclude>
+    <ClInclude Include="source\common\Position.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="source\common\Timer.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="source\common\Trigger.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="source\common\Activator.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="source\common\IProximity.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\IntersectBenchmark.h">
+      <Filter>tests</Filter>
+    </ClInclude>
+    <ClInclude Include="extern\small_vector\small_vector.h">
+      <Filter>Extern\small_vector</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\UnitTests.h">
+      <Filter>tests</Filter>
+    </ClInclude>
+    <ClInclude Include="source\naive_solution\NaiveProximityImpl.h">
+      <Filter>naive_solution</Filter>
+    </ClInclude>
+    <ClInclude Include="source\common\ProximityCommon.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="extern\catch\catch.hpp">
+      <Filter>Extern\catch</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
