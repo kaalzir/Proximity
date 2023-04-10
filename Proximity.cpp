@@ -8,6 +8,8 @@
 #include <time.h>
 #include <Timer.h>
 #include <vector>
+#include <unordered_set>
+#include <unordered_map>
 
 using namespace std;
 
@@ -19,12 +21,12 @@ using Coordinate = uint32_t;
 static constexpr uint32_t sc_MinCoordinate = 1000;
 static constexpr uint32_t sc_MaxCoordinate = 15000;
 static constexpr uint32_t sc_HotspotsSize = 4;
-static constexpr uint32_t sc_TriggersSize = 10000;
-static constexpr uint32_t sc_ActivatorsSize = 64;
-static constexpr ActivatorKey sc_InvalidActivatorKey = sc_ActivatorsSize;
+static constexpr uint32_t sc_TriggersSize = 64;
+static constexpr uint32_t sc_ActivatorsSize = 10000;
+static constexpr ActivatorKey sc_InvalidActivatorKey = sc_ActivatorsSize + sc_TriggersSize;
 static constexpr uint32_t sc_CoordinateVariance = 100;
 static constexpr uint32_t sc_TriggerInRange = 75;
-static constexpr uint32_t sc_RepeatCount = 1000;
+static constexpr uint32_t sc_RepeatCount = 100;
 
 struct Position
 {
@@ -176,74 +178,154 @@ void MoveActivators(Hotspots& hotspots, Activators& activators, uint32_t size, C
     }
 }
 
-void FilterInActivators(const Trigger& trigger, const Activators& activators, uint64_t activatorsBeginIndex, uint64_t activatorsEndIndex, ActivatorKeys& inActivators, uint64_t& inActivatorsSize)
+void FilterInActivators(unordered_map<ActivatorKey, TriggerKey>& inSet, const Trigger& trigger, const Activators& activators, uint64_t activatorsBeginIndex, uint64_t activatorsEndIndex, ActivatorKeys& inActivators, uint64_t& inActivatorsSize, double& someElapsed)
 {
+    //Timer timer;
     inActivatorsSize = 0;
     for (uint64_t i = activatorsBeginIndex; i < activatorsEndIndex; ++i)
     {
-        if (IsInRange(trigger.m_Position, activators[i].m_Position, trigger.m_InRange))
+        if (IsInRange(trigger.m_Position.m_Y, activators[i].m_Position.m_Y, trigger.m_InRange))
         {
             inActivators[inActivatorsSize++] = activators[i].m_Key;
+            inSet[activators[i].m_Key] = trigger.m_Key;
         }
+    }
+    //someElapsed += timer.Elapsed() / sc_RepeatCount;
+}
+
+void FilterNewInOutActivators(unordered_map<ActivatorKey, TriggerKey>& inSet, Trigger& trigger, const ActivatorKeys& inActivators, uint64_t inActivatorsSize, ActivatorKeys& newInActivators, uint64_t& newInActivatorsSize, ActivatorKeys& newOutActivators, uint64_t& newOutActivatorsSize, double& someElapsed)
+{
+    //Timer timer;
+    if (false)
+    {
+        unordered_set<ActivatorKey> existingSet(trigger.m_ActivatorKeys.begin(), trigger.m_ActivatorKeys.end());
+        auto inActivatorsBegin = inActivators.begin();
+        auto inActivatorsEnd = inActivatorsBegin + inActivatorsSize;
+        unordered_set<ActivatorKey> insSet(inActivatorsBegin, inActivatorsEnd);
+        vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
+
+        for (uint32_t i = 0; i < inActivatorsSize; ++i)
+        {
+            ActivatorKey activatorKey = inActivators[i];
+            if (existingSet.find(activatorKey) == existingSet.end())
+            {
+                newInActivators[newInActivatorsSize++] = activatorKey;
+            }
+        }
+        for (ActivatorKey activatorKey : existingKeys)
+        {
+            if (insSet.find(activatorKey) == insSet.end())
+            {
+                newOutActivators[newOutActivatorsSize++] = activatorKey;
+            }
+        }
+        existingKeys.clear();
+        //auto inActivatorsBegin = inActivators.begin();
+        //auto inActivatorsEnd = inActivatorsBegin + inActivatorsSize;
+        std::copy(inActivatorsBegin, inActivatorsEnd, back_inserter(existingKeys));
+        return;
+    }
+    if (true)
+    {
+        vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
+        for (ActivatorKey activatorKey : existingKeys)
+        {
+            auto it = inSet.find(activatorKey);
+            if (it == inSet.end() || it->second != trigger.m_Key)
+            {
+                newOutActivators[newOutActivatorsSize++] = activatorKey;
+            }
+            else if (it != inSet.end())
+            {
+                it->second = sc_InvalidActivatorKey;
+            }
+        }
+
+        for (uint32_t i = 0; i < inActivatorsSize; ++i)
+        {
+            ActivatorKey activatorKey = inActivators[i];
+            if (inSet[activatorKey] != sc_InvalidActivatorKey)
+            {
+                newInActivators[newInActivatorsSize++] = activatorKey;
+            }
+        }
+        existingKeys.clear();
+        auto inActivatorsBegin = inActivators.begin();
+        auto inActivatorsEnd = inActivatorsBegin + inActivatorsSize;
+        std::copy(inActivatorsBegin, inActivatorsEnd, back_inserter(existingKeys));
+    }
+    else
+    {
+        vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
+        auto existingActivatorsBegin = existingKeys.begin();
+        auto existingActivatorsEnd = existingKeys.end();
+        for (uint32_t i = 0; i < inActivatorsSize; ++i)
+        {
+            ActivatorKey activatorKey = inActivators[i];
+            if (find(existingActivatorsBegin, existingActivatorsEnd, activatorKey) == existingActivatorsEnd)
+            {
+                newInActivators[newInActivatorsSize++] = activatorKey;
+            }
+        }
+
+        auto inActivatorsBegin = inActivators.begin();
+        auto inActivatorsEnd = inActivatorsBegin + inActivatorsSize;
+        for (ActivatorKey activatorKey : existingKeys)
+        {
+            if (find(inActivatorsBegin, inActivatorsEnd, activatorKey) == inActivatorsEnd)
+            {
+                newOutActivators[newOutActivatorsSize++] = activatorKey;
+            }
+        }
+        existingKeys.clear();
+        std::copy(inActivatorsBegin, inActivatorsEnd, back_inserter(existingKeys));
     }
 }
 
-void FilterNewInOutActivators(Trigger& trigger, const ActivatorKeys& inActivators, uint64_t inActivatorsSize, ActivatorKeys& newInActivators, uint64_t& newInActivatorsSize, ActivatorKeys& newOutActivators, uint64_t& newOutActivatorsSize)
+void UpdateProximity(Triggers& triggers, Activators& activators, uint64_t& counter, double& someElapsed)
 {
-    vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
-    for (uint32_t i = 0; i < inActivatorsSize; ++i)
-    {
-        ActivatorKey activatorKey = inActivators[i];
-        if (std::find(existingKeys.begin(), existingKeys.end(), activatorKey) == existingKeys.end())
-        {
-            newInActivators[newInActivatorsSize++] = activatorKey;
-        }
-    }
-
-    auto inActivatorsBegin = inActivators.begin();
-    auto inActivatorsEnd = inActivatorsBegin + inActivatorsSize;
-    for (ActivatorKey activatorKey : existingKeys)
-    {
-        if (std::find(inActivatorsBegin, inActivatorsEnd, activatorKey) == inActivatorsEnd)
-        {
-            newOutActivators[newOutActivatorsSize++] = activatorKey;
-        }
-    }
-    existingKeys.clear();
-    std::copy(inActivatorsBegin, inActivatorsEnd, back_inserter(existingKeys));
-}
-
-void UpdateProximity(Triggers& triggers, Activators& activators, uint64_t& counter)
-{
+    //Timer t;
     sort(activators.begin(), activators.end());
     sort(triggers.begin(), triggers.end());
+    //someElapsed += t.Elapsed() / sc_RepeatCount;
 
     uint64_t activatorsBeginIndex{};
     uint64_t activatorsEndIndex{};
+    unordered_map<ActivatorKey, TriggerKey> inSet;
+    inSet.reserve(activators.size());
 
     for (Trigger& trigger : triggers)
     {
+        //Timer timer;
         uint64_t activatorsSize{ activators.size() };
-        while (activatorsBeginIndex != activatorsSize && !IsInRange(trigger.m_Position.m_X, activators[activatorsBeginIndex].m_Position.m_X, trigger.m_InRange))
+        while (activatorsBeginIndex != activatorsSize && activators[activatorsBeginIndex].m_Position.m_X < trigger.m_Position.m_X && !IsInRange(trigger.m_Position.m_X, activators[activatorsBeginIndex].m_Position.m_X, trigger.m_InRange))
         {
             ++activatorsBeginIndex;
         }
-        while (activatorsEndIndex != activatorsSize && IsInRange(trigger.m_Position.m_X, activators[activatorsEndIndex].m_Position.m_X, trigger.m_InRange))
+        if (activatorsBeginIndex > activatorsEndIndex)
+        {
+            activatorsEndIndex = activatorsBeginIndex;
+        }
+        while (activatorsEndIndex != activatorsSize && (activators[activatorsEndIndex].m_Position.m_X < trigger.m_Position.m_X ||  IsInRange(trigger.m_Position.m_X, activators[activatorsEndIndex].m_Position.m_X, trigger.m_InRange)))
         {
             ++activatorsEndIndex;
         }
-
+        //someElapsed += timer.Elapsed() / sc_RepeatCount;
+        //timer.Reinit();
         ActivatorKeys inActivators;
         uint64_t inActivatorsSize{};
-        FilterInActivators(trigger, activators, activatorsBeginIndex, activatorsEndIndex, inActivators, inActivatorsSize);
+        FilterInActivators(inSet,trigger, activators, activatorsBeginIndex, activatorsEndIndex, inActivators, inActivatorsSize, someElapsed);
+        //someElapsed += timer.Elapsed() / sc_RepeatCount;
 
+        //timer.Reinit();
         ActivatorKeys newInActivators;
         uint64_t newInActivatorsSize{};
         ActivatorKeys newOutActivators;
         uint64_t newOutActivatorsSize{};
-        FilterNewInOutActivators(trigger, inActivators, inActivatorsSize, newInActivators, newInActivatorsSize, newOutActivators, newOutActivatorsSize);
-        
-        counter += newInActivatorsSize + newOutActivatorsSize;
+        FilterNewInOutActivators(inSet, trigger, inActivators, inActivatorsSize, newInActivators, newInActivatorsSize, newOutActivators, newOutActivatorsSize, someElapsed);
+
+        //someElapsed += timer.Elapsed() / sc_RepeatCount;
+        counter += activatorsBeginIndex;
     }
 }
 
@@ -266,17 +348,19 @@ int main()
     printf("Build: %.2lf ns \r\n%.2lf us\r\n%.2lf ms\r\n", elapsed, elapsed / 1000, elapsed / 1000000);
 
     double averageElapsed{};
+    double someElapsed{};
     uint64_t counter{};
     for (uint32_t i = 0; i < sc_RepeatCount; ++i)
     {
         timer.Reinit();
         
-        UpdateProximity(triggers, activators, counter);
+        UpdateProximity(triggers, activators, counter, someElapsed);
 
         elapsed = timer.Elapsed();
         averageElapsed += elapsed / sc_RepeatCount;
 
         MoveActivators(hotspots, activators, sc_ActivatorsSize, sc_CoordinateVariance);
     }
+    printf("%lld\r\Some: %.2lf ns \r\n%.2lf us\r\n%.2lf ms\r\n", counter, someElapsed, someElapsed / 1000, someElapsed / 1000000);
     printf("%lld\r\nAverage: %.2lf ns \r\n%.2lf us\r\n%.2lf ms\r\n", counter, averageElapsed, averageElapsed / 1000, averageElapsed / 1000000);
 }
