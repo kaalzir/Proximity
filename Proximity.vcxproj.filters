@@ -28,9 +28,6 @@
     <Filter Include="DirtyFlagSolution">
       <UniqueIdentifier>{4bd10711-ea2d-4a00-91f8-f50addf33a72}</UniqueIdentifier>
     </Filter>
-    <Filter Include="SIMDSolution">
-      <UniqueIdentifier>{b4f387df-375a-43f9-9cc4-dca620cc610d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Extern\small_vector">
       <UniqueIdentifier>{5e0ff854-9594-4b5f-b4bf-3df65ac9bc6e}</UniqueIdentifier>
     </Filter>
@@ -49,6 +46,9 @@
     <Filter Include="Extern\catch">
       <UniqueIdentifier>{68b55ddb-692f-4f32-87e1-f320a961cd00}</UniqueIdentifier>
     </Filter>
+    <Filter Include="simd_solution">
+      <UniqueIdentifier>{b4f387df-375a-43f9-9cc4-dca620cc610d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Proximity.cpp">
@@ -65,6 +65,9 @@
     </ClCompile>
     <ClCompile Include="source\naive_solution\NaiveProximityImpl.cpp">
       <Filter>naive_solution</Filter>
+    </ClCompile>
+    <ClCompile Include="source\simd_solution\SIMDProximityImpl.cpp">
+      <Filter>simd_solution</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -103,6 +106,9 @@
     </ClInclude>
     <ClInclude Include="extern\catch\catch.hpp">
       <Filter>Extern\catch</Filter>
+    </ClInclude>
+    <ClInclude Include="source\simd_solution\SIMDProximityImpl.h">
+      <Filter>simd_solution</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

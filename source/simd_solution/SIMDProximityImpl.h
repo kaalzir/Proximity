@@ -1,22 +1,20 @@
 #pragma once
-
+#include <array>
 #include <vector>
 #include <source/common/IProximity.h>
 #include <source/common/ProximityCommon.h>
 #include <source/common/Activator.h>
 #include <source/common/Trigger.h>
 
-class NaiveProximityImpl : public IProximity
+class SIMDProximityImpl : public IProximity
 {
-	using Triggers = std::vector<Trigger>;
-	using Activators = std::vector<Activator>;
-	using ActivatorKeys = std::vector<ActivatorKey>;
+	using Triggers = std::array<Trigger, sc_TriggersSize>;
+	using Activators = std::array<Activator, sc_ActivatorsSize>;
+	using ActivatorKeys = std::array<ActivatorKey, sc_ActivatorsSize>;
 
 public:
-	NaiveProximityImpl()
+	SIMDProximityImpl()
 	{
-		m_Triggers.reserve(sc_TriggersSize);
-		m_Activators.reserve(sc_ActivatorsSize);
 	}
 
 	void CreateTrigger(uint32_t index, Position position, Coordinate inRange) final;
@@ -33,9 +31,10 @@ public:
 	void Clear() final;
 
 private:
-	void FindInActivators(const Trigger& trigger, Activators& activators, ActivatorKeys& inActivators);
-	void UpdateInActivators(const Trigger& trigger, ActivatorKeys& inActivators, ActivatorKeys& newInActivators, ActivatorKeys& newOutActivators);
+	void FindInActivators(const Trigger& trigger, Activators& activators, ActivatorKeys& inActivators, uint32_t& inActivatorsSize);
+	void UpdateInActivators(const Trigger& trigger, ActivatorKeys& inActivators, uint32_t& inActivatorsSize, ActivatorKeys& newInActivators, uint32_t& newInActivatorsSize, ActivatorKeys& newOutActivators, uint32_t& newOutActivatorsSize);
 
 	Triggers m_Triggers;
 	Activators m_Activators;
 };
+

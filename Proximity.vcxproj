@@ -132,6 +132,7 @@
     <ClCompile Include="extern\aabb\AABB.cc" />
     <ClCompile Include="Proximity.cpp" />
     <ClCompile Include="source\naive_solution\NaiveProximityImpl.cpp" />
+    <ClCompile Include="source\simd_solution\SIMDProximityImpl.cpp" />
     <ClCompile Include="tests\IntersectBenchmark.cpp" />
     <ClCompile Include="tests\UnitTests.cpp" />
   </ItemGroup>
@@ -146,6 +147,7 @@
     <ClInclude Include="source\common\Timer.h" />
     <ClInclude Include="source\common\Trigger.h" />
     <ClInclude Include="source\naive_solution\NaiveProximityImpl.h" />
+    <ClInclude Include="source\simd_solution\SIMDProximityImpl.h" />
     <ClInclude Include="tests\IntersectBenchmark.h" />
     <ClInclude Include="tests\UnitTests.h" />
   </ItemGroup>

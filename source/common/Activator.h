@@ -8,12 +8,12 @@ struct Activator
     Activator() = default;
 
     Activator(Position position, ActivatorKey key)
-        : m_Position(position), m_Key(key)
+        : m_Position(position)
     {
     }
 
     Activator(const Activator& other)
-        : m_Position(other.m_Position), m_Key(other.m_Key)
+        : m_Position(other.m_Position)
     {
     }
 
@@ -23,5 +23,4 @@ struct Activator
     }
 
     Position m_Position{};
-    ActivatorKey m_Key{};
 };

@@ -1,13 +1,13 @@
 #include <source/naive_solution/NaiveProximityImpl.h>
 
-void NaiveProximityImpl::CreateTrigger(Position position, Coordinate inRange)
+void NaiveProximityImpl::CreateTrigger(uint32_t index, Position position, Coordinate inRange)
 {
 	m_Triggers.emplace_back(position, m_Triggers.size(), inRange);
 }
 
-void NaiveProximityImpl::CreateActivator(Position position)
+void NaiveProximityImpl::CreateActivator(uint32_t index, Position position)
 {
-	m_Activators.emplace_back(position, m_Activators.size());
+	//m_Activators.emplace_back(position, m_Activators.size());
 }
 
 void NaiveProximityImpl::UpdateTrigger(uint32_t index, Position position)
@@ -35,7 +35,7 @@ void NaiveProximityImpl::UpdateProximity()
         //Or save newInActivators and newOutActivators and send it outside the loop
         //But this is for illustration purposes, so I'm just increasing a counter
         //So that code is not optimized away
-        counter += newInActivators.size() + newOutActivators.size();
+        counter += newInActivators[newInActivators.size() - 1] + newOutActivators[newOutActivators.size() - 1];
     }
 }
 
@@ -45,7 +45,7 @@ void NaiveProximityImpl::FindInActivators(const Trigger& trigger, Activators& ac
     {
         if (IsInRange(trigger.m_Position, activator.m_Position, trigger.m_InRange))
         {
-            inActivators.push_back(activator.m_Key);
+            //inActivators.push_back(activator.m_Key);
         }
     }
 }

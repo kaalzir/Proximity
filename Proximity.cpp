@@ -9,6 +9,7 @@
 #include <source/common/ProximityCommon.h>
 #include <source/common/Timer.h>
 #include <source/naive_solution/NaiveProximityImpl.h>
+#include <source/simd_solution/SIMDProximityImpl.h>
 #include <stdint.h>
 #include <tests/UnitTests.h>
 #include <time.h>
@@ -44,7 +45,7 @@ void BuildTriggers(Hotspots& hotspots, IProximity& proximity, uint32_t size, Coo
         uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
         uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         Position triggerPos(x, y);
-        proximity.CreateTrigger(triggerPos, inRange);
+        proximity.CreateTrigger(i, triggerPos, inRange);
     }
 }
 
@@ -57,7 +58,7 @@ void BuildActivators(Hotspots& hotspots, IProximity& proximity, uint32_t size, C
         uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
         uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         Position activatorPos(x, y);
-        proximity.CreateActivator(activatorPos);
+        proximity.CreateActivator(i, activatorPos);
     }
 }
 
@@ -91,7 +92,7 @@ int main()
 
     Timer timer;
 
-    IProximity* proximity = new NaiveProximityImpl();
+    IProximity* proximity = new SIMDProximityImpl();
 
     Hotspots hotspots;
     BuildHotspots(hotspots, sc_HotspotsSize, sc_MinCoordinate, sc_MaxCoordinate);
@@ -135,6 +136,7 @@ int main()
         MoveActivators(hotspots, *proximity, sc_ActivatorsSize, sc_CoordinateVariance);
         MoveTriggers(hotspots, *proximity, sc_TriggersSize, sc_CoordinateVariance);
     }
+    printf("ms_FindInActivatorsElapsed: %.3lf ms \r\nms_FindInActivatorsSIMDElapsed: %.3lf ms\r\nms_FindInActivatorsIfsElapsed:%.3lf ms\r\nms_FindNewInElapsed:%.3lf ms\r\n", IProximity::ms_FindInActivatorsElapsed / 1000000, IProximity::ms_FindInActivatorsSIMDElapsed / 1000000, IProximity::ms_FindInActivatorsIfsElapsed / 1000000, IProximity::ms_FindNewInElapsed / 1000000);
     printf("FirstFrame: %.3lf ms \r\nMinFrame: %.3lf ms\r\nMaxFrame:%.3lf ms\r\n", firstFrame / 1000000, minFrame / 1000000, maxFrame / 1000000);
     printf("Average: %.3lf ns \r\n%.3lf us\r\n%.3lf ms\r\n", averageElapsed, averageElapsed / 1000, averageElapsed / 1000000);
 

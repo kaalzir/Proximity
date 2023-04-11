@@ -5,20 +5,6 @@
 bool RunNewActivatorJoinedTest(IProximity& proximity)
 {
 	proximity.Clear();
-
-	bool result{ true };
-
-	Coordinate inRange = 50;
-	Position triggerPos(100, 100);
-	proximity.CreateTrigger(triggerPos, inRange);
-
-	proximity.UpdateProximity();
-
-	if (proximity.GetTrigger(0).m_ActivatorKeys.size() != 0)
-	{
-
-	}
-
 	return false;
 }
 
