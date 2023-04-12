@@ -24,5 +24,6 @@ public:
 	static double ms_FindInActivatorsElapsed;
 	static double ms_FindInActivatorsSIMDElapsed;
 	static double ms_FindInActivatorsIfsElapsed;
-	static double ms_FindNewInElapsed;
+	static double ms_UpdateInActivators;
+	static uint64_t ms_Counter;
 };

@@ -32,7 +32,7 @@ public:
 
 private:
 	void FindInActivators(const Trigger& trigger, Activators& activators, ActivatorKeys& inActivators, uint32_t& inActivatorsSize);
-	void UpdateInActivators(const Trigger& trigger, ActivatorKeys& inActivators, uint32_t& inActivatorsSize, ActivatorKeys& newInActivators, uint32_t& newInActivatorsSize, ActivatorKeys& newOutActivators, uint32_t& newOutActivatorsSize);
+	void UpdateInActivators(Trigger& trigger, ActivatorKeys& inActivators, uint32_t& inActivatorsSize, ActivatorKeys& newInActivators, uint32_t& newInActivatorsSize, ActivatorKeys& newOutActivators, uint32_t& newOutActivatorsSize);
 
 	Triggers m_Triggers;
 	Activators m_Activators;

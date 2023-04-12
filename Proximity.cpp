@@ -42,8 +42,8 @@ void BuildTriggers(Hotspots& hotspots, IProximity& proximity, uint32_t size, Coo
     for (uint32_t i = 0; i < size; ++i)
     {
         uint32_t hotspotIndex{ i % hotspotSize };
-        uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
-        uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
+        Coordinate x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
+        Coordinate y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         Position triggerPos(x, y);
         proximity.CreateTrigger(i, triggerPos, inRange);
     }
@@ -55,8 +55,8 @@ void BuildActivators(Hotspots& hotspots, IProximity& proximity, uint32_t size, C
     for (uint32_t i = 0; i < size; ++i)
     {
         uint32_t hotspotIndex{ i % hotspotSize };
-        uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
-        uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
+        Coordinate x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
+        Coordinate y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         Position activatorPos(x, y);
         proximity.CreateActivator(i, activatorPos);
     }
@@ -68,8 +68,8 @@ void MoveActivators(Hotspots& hotspots, IProximity& proximity, uint32_t size, Co
     for (uint32_t i = 0; i < size; ++i)
     {
         uint32_t hotspotIndex{ i % hotspotSize };
-        uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
-        uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
+        Coordinate x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
+        Coordinate y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         proximity.UpdateActivator(i, Position(x, y));
     }
 }
@@ -80,8 +80,8 @@ void MoveTriggers(Hotspots& hotspots, IProximity& proximity, uint32_t size, Coor
     for (uint32_t i = 0; i < size; ++i)
     {
         uint32_t hotspotIndex{ i % hotspotSize };
-        uint32_t x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
-        uint32_t y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
+        Coordinate x{ RandomCoordinate(hotspots[hotspotIndex].m_X - coordinateVariance, hotspots[hotspotIndex].m_X + coordinateVariance) };
+        Coordinate y{ RandomCoordinate(hotspots[hotspotIndex].m_Y - coordinateVariance, hotspots[hotspotIndex].m_Y + coordinateVariance) };
         proximity.UpdateTrigger(i, Position(x, y));
     }
 }
@@ -136,7 +136,8 @@ int main()
         MoveActivators(hotspots, *proximity, sc_ActivatorsSize, sc_CoordinateVariance);
         MoveTriggers(hotspots, *proximity, sc_TriggersSize, sc_CoordinateVariance);
     }
-    printf("ms_FindInActivatorsElapsed: %.3lf ms \r\nms_FindInActivatorsSIMDElapsed: %.3lf ms\r\nms_FindInActivatorsIfsElapsed:%.3lf ms\r\nms_FindNewInElapsed:%.3lf ms\r\n", IProximity::ms_FindInActivatorsElapsed / 1000000, IProximity::ms_FindInActivatorsSIMDElapsed / 1000000, IProximity::ms_FindInActivatorsIfsElapsed / 1000000, IProximity::ms_FindNewInElapsed / 1000000);
+    printf("Counter: %llu\r\n", IProximity::ms_Counter);
+    printf("ms_FindInActivatorsElapsed: %.3lf ms \r\nms_FindInActivatorsSIMDElapsed: %.3lf ms\r\nms_FindInActivatorsIfsElapsed:%.3lf ms\r\nms_UpdateInActivators:%.3lf ms\r\n", IProximity::ms_FindInActivatorsElapsed / 1000000, IProximity::ms_FindInActivatorsSIMDElapsed / 1000000, IProximity::ms_FindInActivatorsIfsElapsed / 1000000, IProximity::ms_UpdateInActivators / 1000000);
     printf("FirstFrame: %.3lf ms \r\nMinFrame: %.3lf ms\r\nMaxFrame:%.3lf ms\r\n", firstFrame / 1000000, minFrame / 1000000, maxFrame / 1000000);
     printf("Average: %.3lf ns \r\n%.3lf us\r\n%.3lf ms\r\n", averageElapsed, averageElapsed / 1000, averageElapsed / 1000000);
 

@@ -1,5 +1,7 @@
 #include <source/naive_solution/NaiveProximityImpl.h>
 
+#include <iterator>
+
 void NaiveProximityImpl::CreateTrigger(uint32_t index, Position position, Coordinate inRange)
 {
 	m_Triggers.emplace_back(position, m_Triggers.size(), inRange);
@@ -50,9 +52,9 @@ void NaiveProximityImpl::FindInActivators(const Trigger& trigger, Activators& ac
     }
 }
 
-void NaiveProximityImpl::UpdateInActivators(const Trigger& trigger, ActivatorKeys& inActivators, ActivatorKeys& newInActivators, ActivatorKeys& newOutActivators)
+void NaiveProximityImpl::UpdateInActivators(Trigger& trigger, ActivatorKeys& inActivators, ActivatorKeys& newInActivators, ActivatorKeys& newOutActivators)
 {
-    const std::vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
+    std::vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
     for (const ActivatorKey& activatorKey : inActivators)
     {
         if (std::find(existingKeys.begin(), existingKeys.end(), activatorKey) == existingKeys.end())
@@ -67,6 +69,9 @@ void NaiveProximityImpl::UpdateInActivators(const Trigger& trigger, ActivatorKey
             newOutActivators.push_back(activatorKey);
         }
     }
+
+    existingKeys.clear();
+    std::copy(inActivators.begin(), inActivators.end(), std::back_inserter(existingKeys));
 }
 
 void NaiveProximityImpl::Clear()

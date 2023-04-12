@@ -35,11 +35,10 @@ inline bool IsInRange(const Coordinate first, const Coordinate second, const Coo
 
 inline bool IsInRange(const Position first, const Position second, const Coordinate inRange)
 {
-    return IsInRange(first.m_X, second.m_X, inRange) || IsInRange(first.m_Y, second.m_Y, inRange);
+    return IsInRange(first.m_X, second.m_X, inRange) && IsInRange(first.m_Y, second.m_Y, inRange);
 }
 
-template<typename T>
-inline T RandomCoordinate(T minCoordinate, T maxCoordinate)
+inline Coordinate RandomCoordinate(Coordinate minCoordinate, Coordinate maxCoordinate)
 {
     return rand() % (maxCoordinate - minCoordinate + 1) + minCoordinate;
 }

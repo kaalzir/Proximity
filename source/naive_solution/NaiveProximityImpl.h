@@ -34,7 +34,7 @@ public:
 
 private:
 	void FindInActivators(const Trigger& trigger, Activators& activators, ActivatorKeys& inActivators);
-	void UpdateInActivators(const Trigger& trigger, ActivatorKeys& inActivators, ActivatorKeys& newInActivators, ActivatorKeys& newOutActivators);
+	void UpdateInActivators(Trigger& trigger, ActivatorKeys& inActivators, ActivatorKeys& newInActivators, ActivatorKeys& newOutActivators);
 
 	Triggers m_Triggers;
 	Activators m_Activators;

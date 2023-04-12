@@ -2,11 +2,13 @@
 
 #include <source/common/Timer.h>
 #include <intrin.h>
+#include <iterator>
 
 double IProximity::ms_FindInActivatorsElapsed = 0;
 double IProximity::ms_FindInActivatorsSIMDElapsed = 0;
 double IProximity::ms_FindInActivatorsIfsElapsed = 0;
-double IProximity::ms_FindNewInElapsed = 0;
+double IProximity::ms_UpdateInActivators = 0;
+uint64_t IProximity::ms_Counter = 0;
 
 void SIMDProximityImpl::CreateTrigger(uint32_t index, Position position, Coordinate inRange)
 {
@@ -30,119 +32,119 @@ void SIMDProximityImpl::UpdateActivator(uint32_t index, Position position)
 
 void SIMDProximityImpl::UpdateProximity()
 {
-    uint32_t counter{ 0 };
+    uint64_t counter{ 0 };
     ActivatorKeys inActivators;
     ActivatorKeys newInActivators;
+    newInActivators.fill(0);
     ActivatorKeys newOutActivators;
+    newOutActivators.fill(0);
 
     for (Trigger& trigger : m_Triggers)
     {
         uint32_t inActivatorsSize{ 0 };
         uint32_t newInActivatorsSize{ 0 };
         uint32_t newOutActivatorsSize{ 0 };
-
+        //Timer timer;
         FindInActivators(trigger, m_Activators, inActivators, inActivatorsSize);
+        //IProximity::ms_FindInActivatorsElapsed += timer.Elapsed();
+        //timer.Reinit();
         UpdateInActivators(trigger, inActivators, inActivatorsSize, newInActivators, newInActivatorsSize, newOutActivators, newOutActivatorsSize);
+        //IProximity::ms_UpdateInActivators += timer.Elapsed();
 
         //Here we would send events
         //Or save newInActivators and newOutActivators and send it outside the loop
         //But this is for illustration purposes, so I'm just increasing a counter
         //So that code is not optimized away
-        counter += newInActivators[newInActivatorsSize - 1] + newOutActivators[newOutActivatorsSize == 0 ? 0 : newOutActivatorsSize - 1];
+        counter += newInActivators[newInActivatorsSize == 0 ? 0 : newInActivatorsSize - 1] + newOutActivators[newOutActivatorsSize == 0 ? 0 : newOutActivatorsSize - 1];
     }
+    IProximity::ms_Counter += counter;
 }
 
 void SIMDProximityImpl::FindInActivators(const Trigger& trigger, Activators& activators, ActivatorKeys& inActivators, uint32_t& inActivatorsSize)
 {
-    struct alignas(16) SIMDResult
-    {
-        uint16_t result0;
-        uint16_t result1;
-        uint16_t result2;
-        uint16_t result3;
-        uint16_t result4;
-        uint16_t result5;
-        uint16_t result6;
-        uint16_t result7;
-    };
-
-    __m128i triggerXVec = _mm_set1_epi16(trigger.m_Position.m_X);
-    __m128i triggerYVec = _mm_set1_epi16(trigger.m_Position.m_Y);
-    __m128i inRangeVec = _mm_set1_epi16(trigger.m_InRange);
+    inActivatorsSize = 0;
     uint32_t activatorsSize{ (uint32_t)activators.size() };
-    for (uint32_t activatorIndex = 0; activatorIndex < activatorsSize; activatorIndex += 8)
+    uint64_t counter{};
+
+    __m128i triggerVec = _mm_set1_epi32((trigger.m_Position.m_Y << 16) + trigger.m_Position.m_X);
+    __m128i inRangeVec = _mm_set1_epi16(trigger.m_InRange);
+    for (uint32_t activatorIndex = 0; activatorIndex < activatorsSize; activatorIndex += 4)
     {
-        const Position& activatorPos{ activators[activatorIndex].m_Position };
-        const Position& activatorPos1{ activators[activatorIndex + 1].m_Position };
-        const Position& activatorPos2{ activators[activatorIndex + 2].m_Position };
-        const Position& activatorPos3{ activators[activatorIndex + 3].m_Position };
-        const Position& activatorPos4{ activators[activatorIndex + 4].m_Position };
-        const Position& activatorPos5{ activators[activatorIndex + 5].m_Position };
-        const Position& activatorPos6{ activators[activatorIndex + 6].m_Position };
-        const Position& activatorPos7{ activators[activatorIndex + 7].m_Position };
+        __m128i activatorVec = _mm_load_si128((__m128i*) & activators[activatorIndex]);
 
-        __m128i activatorXVec = _mm_set_epi16(activatorPos.m_X, activatorPos1.m_X, activatorPos2.m_X, activatorPos3.m_X, activatorPos4.m_X, activatorPos5.m_X, activatorPos6.m_X, activatorPos7.m_X);
-        
-        activatorXVec = _mm_sub_epi16(_mm_max_epi16(activatorXVec, triggerXVec), _mm_min_epi16(activatorXVec, triggerXVec));
-        __m128i compareResultXIn = _mm_cmplt_epi16(activatorXVec, inRangeVec);
+        activatorVec = _mm_sub_epi16(_mm_max_epi16(activatorVec, triggerVec), _mm_min_epi16(activatorVec, triggerVec));
+        __m128i compareResultIn = _mm_cmplt_epi16(activatorVec, inRangeVec);
+        __m128i compareResultInShifted = _mm_bsrli_si128(compareResultIn, 2);
+        __m128i resultMask = _mm_and_si128(compareResultIn, compareResultInShifted);
 
-        __m128i activatorYVec = _mm_set_epi16(activatorPos.m_Y, activatorPos1.m_Y, activatorPos2.m_Y, activatorPos3.m_Y, activatorPos4.m_Y, activatorPos5.m_Y, activatorPos6.m_Y, activatorPos7.m_Y);
-        activatorYVec = _mm_sub_epi16(_mm_max_epi16(activatorYVec, triggerYVec), _mm_min_epi16(activatorYVec, triggerYVec));
+        uint64_t lowerBytesMask;
+        _mm_storel_epi64((__m128i*) & lowerBytesMask, resultMask);
+        uint32_t addedIndex = _mm_popcnt_u64(lowerBytesMask) / 16;
+        resultMask = _mm_bsrli_si128(resultMask, 8);
 
-        __m128i compareResultYIn = _mm_cmplt_epi16(activatorYVec, inRangeVec);
+        __m128i activatorKeysVec = _mm_set_epi32(activatorIndex + 3, activatorIndex + 2, activatorIndex + 1, activatorIndex);
+        uint64_t lowerBytesAct;
+        _mm_storel_epi64((__m128i*) & lowerBytesAct, activatorKeysVec);
+        uint64_t lowerresult = _pext_u64(lowerBytesAct, lowerBytesMask);
+        __m128i actualResult = _mm_set_epi64x(lowerresult, lowerresult);
 
-        SIMDResult result;
-        _mm_store_si128((__m128i*) &result, _mm_and_si128(compareResultXIn, compareResultYIn));
+        _mm_store_si128((__m128i*) & inActivators[inActivatorsSize], actualResult);
+        inActivatorsSize += addedIndex;
 
-        if (result.result0)
-        {
-            inActivators[inActivatorsSize++] = activatorIndex;
-        }
-        if (result.result1)
-        {
-            inActivators[inActivatorsSize++] = activatorIndex + 1;
-        }
-        if (result.result2)
-        {
-            inActivators[inActivatorsSize++] = activatorIndex + 2;
-        }
-        if (result.result3)
-        {
-            inActivators[inActivatorsSize++] = activatorIndex + 3;
-        }
-        if (result.result4)
-        {
-            inActivators[inActivatorsSize++] = activatorIndex + 4;
-        }
-        if (result.result5)
-        {
-            inActivators[inActivatorsSize++] = activatorIndex + 5;
-        }
-        if (result.result6)
-        {
-            inActivators[inActivatorsSize++] = activatorIndex + 6;
-        }
-        if (result.result7)
-        {
-            inActivators[inActivatorsSize++] = activatorIndex + 7;
-        }
+        uint64_t upperBytesMask;
+        _mm_storel_epi64((__m128i*) & upperBytesMask, resultMask);
+        addedIndex = _mm_popcnt_u64(upperBytesMask) / 16;
+
+        activatorKeysVec = _mm_bsrli_si128(activatorKeysVec, 8);
+        uint64_t upperBytesAct;
+        _mm_storel_epi64((__m128i*) & upperBytesAct, activatorKeysVec);
+
+        uint64_t upperResult = _pext_u64(upperBytesAct, upperBytesMask);
+        actualResult = _mm_set_epi64x(upperResult, upperResult);
+
+        _mm_store_si128((__m128i*) & inActivators[inActivatorsSize], actualResult);
+        inActivatorsSize += addedIndex;
     }
-
-    /*inActivatorsSize = 0;
+   /* uint32_t index = 0;
     for (const Activator& activator : activators)
     {
         if (IsInRange(trigger.m_Position, activator.m_Position, trigger.m_InRange))
         {
-            inActivators[inActivatorsSize++] = activator.m_Key;
+            inActivators[inActivatorsSize++] = index;
+        }
+        ++index;
+    }*/
+    
+    /*for (uint32_t index = 0; index < activatorsSize; index += 4)
+    {
+        const Activator& activator1 = activators[index];
+        const Activator& activator2 = activators[index + 1];
+        const Activator& activator3 = activators[index + 2];
+        const Activator& activator4 = activators[index + 3];
+        if (IsInRange(trigger.m_Position, activator1.m_Position, trigger.m_InRange))
+        {
+            inActivators[inActivatorsSize++] = index;
+        }
+        if (IsInRange(trigger.m_Position, activator2.m_Position, trigger.m_InRange))
+        {
+            inActivators[inActivatorsSize++] = index;
+        }
+        if (IsInRange(trigger.m_Position, activator3.m_Position, trigger.m_InRange))
+        {
+            inActivators[inActivatorsSize++] = index;
+        }
+        if (IsInRange(trigger.m_Position, activator4.m_Position, trigger.m_InRange))
+        {
+            inActivators[inActivatorsSize++] = index;
         }
     }*/
 }
 
-void SIMDProximityImpl::UpdateInActivators(const Trigger& trigger, ActivatorKeys& inActivators, uint32_t& inActivatorsSize, ActivatorKeys& newInActivators, uint32_t& newInActivatorsSize, ActivatorKeys& newOutActivators, uint32_t& newOutActivatorsSize)
+void SIMDProximityImpl::UpdateInActivators(Trigger& trigger, ActivatorKeys& inActivators, uint32_t& inActivatorsSize, ActivatorKeys& newInActivators, uint32_t& newInActivatorsSize, ActivatorKeys& newOutActivators, uint32_t& newOutActivatorsSize)
 {
     newInActivatorsSize = 0;
     newOutActivatorsSize = 0;
-    const std::vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
+    std::vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
     uint32_t index{ 0 };
     for (const ActivatorKey& activatorKey : inActivators)
     {
@@ -157,11 +159,14 @@ void SIMDProximityImpl::UpdateInActivators(const Trigger& trigger, ActivatorKeys
     }
     for (const ActivatorKey& activatorKey : existingKeys)
     {
-        if (std::find(inActivators.begin(), inActivators.begin() + inActivatorsSize, activatorKey) == inActivators.end())
+        if (activatorKey != 0 && std::find(inActivators.begin(), inActivators.begin() + inActivatorsSize, activatorKey) == inActivators.end())
         {
             newOutActivators[newOutActivatorsSize++] = activatorKey;
         }
     }
+
+    existingKeys.clear();
+    std::copy(inActivators.begin(), inActivators.begin() + inActivatorsSize, std::back_inserter(existingKeys));
 }
 
 void SIMDProximityImpl::Clear()
