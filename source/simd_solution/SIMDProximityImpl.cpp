@@ -44,11 +44,31 @@ void SIMDProximityImpl::UpdateProximity()
         uint32_t inActivatorsSize{ 0 };
         uint32_t newInActivatorsSize{ 0 };
         uint32_t newOutActivatorsSize{ 0 };
-        //Timer timer;
-        FindInActivators(trigger, m_Activators, inActivators, inActivatorsSize);
-        //IProximity::ms_FindInActivatorsElapsed += timer.Elapsed();
-        //timer.Reinit();
-        UpdateInActivators(trigger, inActivators, inActivatorsSize, newInActivators, newInActivatorsSize, newOutActivators, newOutActivatorsSize);
+        inActivatorsSize = 0;
+        uint32_t activatorsSize{ (uint32_t)m_Activators.size() };
+        std::vector<ActivatorKey>& existingKeys{ trigger.m_ActivatorKeys };
+        uint32_t existingActivatorsSize{ (uint32_t)existingKeys.size() };
+        uint32_t existingActivatorsSIMDSize{ existingActivatorsSize - existingActivatorsSize % 4 };
+        uint64_t counter{};
+
+        __m128i triggerVec = _mm_set1_epi32((trigger.m_Position.m_Y << 16) + trigger.m_Position.m_X);
+        __m128i inRangeVec = _mm_set1_epi16(trigger.m_InRange);
+        for (uint32_t activatorIndex = 0; activatorIndex < activatorsSize; activatorIndex += 4)
+        {
+            __m128i activatorVec = _mm_load_si128((__m128i*) & m_Activators[activatorIndex]);
+
+            activatorVec = _mm_sub_epi16(_mm_max_epi16(activatorVec, triggerVec), _mm_min_epi16(activatorVec, triggerVec));
+            __m128i compareResultIn = _mm_cmplt_epi16(activatorVec, inRangeVec);
+            __m128i compareResultInShifted = _mm_bsrli_si128(compareResultIn, 2);
+            __m128i resultMask = _mm_and_si128(compareResultIn, compareResultInShifted);
+            __m128i activatorKeysVec = _mm_set_epi32(activatorIndex + 3, activatorIndex + 2, activatorIndex + 1, activatorIndex);
+            __m128i inActivatorKeysVec = _mm_and_si128(resultMask, activatorKeysVec);
+            __m128i outActivatorKeysVec = _mm_andnot_si128(resultMask, activatorKeysVec);
+            for (uint32_t existingActivatorsIndex = 0; existingActivatorsIndex < existingActivatorsSIMDSize; existingActivatorsIndex += 4)
+            {
+                __m128i existingActivatorVec = _mm_load_si128((__m128i*) & existingKeys[activatorIndex]);
+            }
+        }
         //IProximity::ms_UpdateInActivators += timer.Elapsed();
 
         //Here we would send events
